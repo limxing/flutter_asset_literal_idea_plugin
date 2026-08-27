@@ -28,8 +28,12 @@ public class AssetLiteralCompletionContributor extends CompletionContributor {
     private static final Logger LOG = Logger.getInstance(AssetLiteralCompletionContributor.class);
 
     public AssetLiteralCompletionContributor() {
-        SVGActivator svgActivator = new SVGActivator();
-        svgActivator.activate();
+        try {
+            SVGActivator svgActivator = new SVGActivator();
+            svgActivator.activate();
+        } catch (Throwable t) {
+            LOG.error("SVGActivator.activate failed", t);
+        }
         //We will not process strings in import statements
         extend(CompletionType.BASIC, PlatformPatterns.and(PlatformPatterns.psiElement(DartTokenTypes.REGULAR_STRING_PART),PlatformPatterns.not(PlatformPatterns.psiElement(DartTokenTypes.REGULAR_STRING_PART).inside(PlatformPatterns.psiElement(DartTokenTypes.IMPORT_STATEMENT)))) , new CompletionProvider<CompletionParameters>() {
 

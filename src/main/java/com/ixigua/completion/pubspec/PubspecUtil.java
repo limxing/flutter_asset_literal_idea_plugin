@@ -18,6 +18,7 @@ import org.jetbrains.annotations.Nullable;
 import org.yaml.snakeyaml.DumperOptions;
 import org.yaml.snakeyaml.Yaml;
 import org.yaml.snakeyaml.constructor.SafeConstructor;
+import org.yaml.snakeyaml.LoaderOptions;
 import org.yaml.snakeyaml.nodes.*;
 import org.yaml.snakeyaml.representer.Representer;
 import org.yaml.snakeyaml.resolver.Resolver;
@@ -88,15 +89,22 @@ public class PubspecUtil {
 
     @NotNull
     private static Yaml createYaml() {
-        return new Yaml(new SafeConstructor(), new Representer(), new DumperOptions(), new Resolver() {
-            protected void addImplicitResolvers() {
-                this.addImplicitResolver(Tag.BOOL, BOOL, "yYnNtTfFoO");
-                this.addImplicitResolver(Tag.NULL, NULL, "~nN\u0000");
-                this.addImplicitResolver(Tag.NULL, EMPTY, null);
-                this.addImplicitResolver(new Tag("tag:yaml.org,2002:value"), VALUE, "=");
-                this.addImplicitResolver(Tag.MERGE, MERGE, "<");
-            }
-        });
+        DumperOptions dumperOptions = new DumperOptions();
+        LoaderOptions loaderOptions = new LoaderOptions();
+        return new Yaml(
+                new SafeConstructor(loaderOptions),
+                new Representer(dumperOptions),
+                dumperOptions,
+                loaderOptions,
+                new Resolver() {
+                    protected void addImplicitResolvers() {
+                        this.addImplicitResolver(Tag.BOOL, BOOL, "yYnNtTfFoO");
+                        this.addImplicitResolver(Tag.NULL, NULL, "~nN\u0000");
+                        this.addImplicitResolver(Tag.NULL, EMPTY, null);
+                        this.addImplicitResolver(new Tag("tag:yaml.org,2002:value"), VALUE, "=");
+                        this.addImplicitResolver(Tag.MERGE, MERGE, "<");
+                    }
+                });
     }
 
     /**

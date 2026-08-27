@@ -3,6 +3,7 @@ package com.ixigua.completion.sync;
 import com.intellij.openapi.actionSystem.AnAction;
 import com.intellij.openapi.actionSystem.AnActionEvent;
 import com.intellij.openapi.actionSystem.CommonDataKeys;
+import com.intellij.openapi.actionSystem.PlatformDataKeys;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.fileEditor.FileDocumentManager;
 import com.intellij.openapi.fileEditor.FileEditorManager;
@@ -62,9 +63,90 @@ public class SyncAssetsAction extends AnAction {
         return false;
     }
 
+    /**
+     * Extract a VirtualFile from an arbitrary selected object, using reflection to avoid
+     * hard dependencies on internal IDE node classes. Handles VirtualFile directly, PsiElements,
+     * and tree nodes exposing a getValue()/getVirtualFile()/getContainingFile() accessor.
+     */
+    @Nullable
+    private static VirtualFile extractVirtualFile(Object o) {
+        if (o == null) {
+            return null;
+        }
+        if (o instanceof VirtualFile) {
+            return (VirtualFile) o;
+        }
+        try {
+            // com.intellij.openapi.vfs.VirtualFile or its subtypes
+            // com.intellij.psi.PsiFileSystemItem -> getVirtualFile()
+            // com.intellij.ide.util.treeView.AbstractTreeNode -> getValue()
+            java.lang.reflect.Method[] methods = o.getClass().getMethods();
+            for (java.lang.reflect.Method m : methods) {
+                String name = m.getName();
+                if (m.getParameterCount() == 0) {
+                    if (name.equals("getVirtualFile")) {
+                        Object v = m.invoke(o);
+                        if (v instanceof VirtualFile) {
+                            return (VirtualFile) v;
+                        }
+                    } else if (name.equals("getContainingFile")) {
+                        Object v = m.invoke(o);
+                        if (v != null) {
+                            VirtualFile vf = extractVirtualFile(v);
+                            if (vf != null) {
+                                return vf;
+                            }
+                        }
+                    } else if (name.equals("getValue")) {
+                        Object v = m.invoke(o);
+                        if (v != null && v != o) {
+                            VirtualFile vf = extractVirtualFile(v);
+                            if (vf != null) {
+                                return vf;
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (Throwable ignored) {
+            // best-effort extraction; ignore non-extractable types
+        }
+        return null;
+    }
+
     @Nullable
     private SyncAssetsInfo getInfoFromEvent(@NotNull AnActionEvent e) {
         VirtualFile[] selectedFiles = e.getData(CommonDataKeys.VIRTUAL_FILE_ARRAY);
+        // fallback for IntelliJ 2025 / AS 253 platform: VIRTUAL_FILE_ARRAY may be null in
+        // ProjectViewPopupMenu; fall back to other keys. The selected item is often a
+        // tree node (PsiDirectoryNode / PsiFileNode etc.), not a VirtualFile directly.
+        if (selectedFiles == null || selectedFiles.length == 0) {
+            Object[] items = e.getData(PlatformDataKeys.SELECTED_ITEMS);
+            java.util.List<VirtualFile> list = new java.util.ArrayList<>();
+            if (items != null) {
+                for (Object it : items) {
+                    VirtualFile vf = extractVirtualFile(it);
+                    if (vf != null) {
+                        list.add(vf);
+                    }
+                }
+            }
+            if (list.isEmpty()) {
+                VirtualFile single = e.getData(CommonDataKeys.VIRTUAL_FILE);
+                if (single != null) {
+                    list.add(single);
+                }
+            }
+            if (list.isEmpty()) {
+                VirtualFile dir = e.getData(PlatformDataKeys.PROJECT_FILE_DIRECTORY);
+                if (dir != null) {
+                    list.add(dir);
+                }
+            }
+            if (!list.isEmpty()) {
+                selectedFiles = list.toArray(new VirtualFile[0]);
+            }
+        }
         if (selectedFiles == null || selectedFiles.length == 0) {
             return null;
         }

@@ -1,16 +1,12 @@
 plugins {
-    id 'org.jetbrains.intellij' version '1.9.0'
+    id 'org.jetbrains.intellij.platform' version '2.18.1'
 }
 
 Properties properties = new Properties()
 properties.load(new FileReader(project.rootProject.file('local.properties')))
 
-publishPlugin {
-    token = System.getenv("ORG_GRADLE_PROJECT_intellijPublishToken")
-}
-
 group 'com.ixigua'
-version '1.7.8'
+version '2.0.0'
 
 java {
     sourceCompatibility = JavaVersion.toVersion(javaVersion)
@@ -19,149 +15,53 @@ java {
 
 repositories {
     mavenCentral()
-    gradlePluginPortal()
+    intellijPlatform {
+        defaultRepositories()
+        marketplace()
+    }
 }
 
 dependencies {
+    intellijPlatform {
+        // 使用本机已安装的 Android Studio 作为编译目标（精确匹配 AI-253 平台）
+        local(properties.getProperty('ideDirectory'))
+        bundledPlugin('com.intellij.modules.lang')
+        // Dart 插件不在 AS bundled 目录，从 Marketplace 拉取与本地一致版本
+        plugin('Dart', '505.0.0')
+    }
+
+    // SVG 预览功能需要的 Batik 库（原 1.x 插件由 IDE 间接提供，2.x 需显式声明）
+    // 只排除 xml-apis（其旧版 org.w3c.dom 与 JDK21 内置 java.xml 冲突，导致
+    // SAXSVGDocumentFactory 初始化失败）；必须保留 xml-apis-ext（提供 org.w3c.dom.svg，
+    // JDK 内置 java.xml 不含此包）
+    implementation('org.apache.xmlgraphics:batik-transcoder:1.17') {
+        exclude group: 'xml-apis', module: 'xml-apis'
+    }
+    implementation('org.apache.xmlgraphics:batik-codec:1.17') {
+        exclude group: 'xml-apis', module: 'xml-apis'
+    }
+    implementation('org.apache.xmlgraphics:batik-anim:1.17') {
+        exclude group: 'xml-apis', module: 'xml-apis'
+    }
+
     testImplementation 'org.junit.jupiter:junit-jupiter-api:5.8.1'
     testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.8.1'
 }
 
 test {
-    systemProperty "idea.home.path", properties.getProperty('ideDirectory')
-    systemProperty "idea.force.use.core.classloader", "true"
     useJUnitPlatform()
 }
 
-// See https://github.com/JetBrains/gradle-intellij-plugin/
-intellij {
-    version = intellijVersion
-    plugins = ["Dart:$dartVersion"]
-    updateSinceUntilBuild = false
-}
-
-runIde {
-    // Absolute path to installed target v3.5 Android Studio to use as IDE Development Instance
-    // The "Contents" directory is macOS specific.
-    ideDir = new File(properties.getProperty('ideDirectory'))
-}
-
-patchPluginXml {
-    version = project.version
-    sinceBuild = '222.3244.4'
-    untilBuild = '222.*'
-    changeNotes = """
-    <h1>1.7.8</h1>
-    <ul>
-      <li> Adapt Idea 222 version </li>
-      <li> Update 'org.jetbrains.intellij' to 1.9.0 </li>
-    </ul>
-    <h1>1.7.6</h1>
-    <ul>
-      <li> Adapt Idea 213 version </li>
-    </ul>
-    <h1>1.7.5</h1>
-    <ul>
-      <li> bugfix: Sync Assets in sub-project  </li>
-    </ul>
-    <h1>1.7.4</h1>
-    <ul>
-      <li> bugfix </li>
-    </ul>
-    <h1>1.7.3</h1>
-    <ul>
-      <li> bugfix </li>
-    </ul>
-    <h1>1.7.0</h1>
-    <ul>
-      <li> Register assets to pubspec with one click </li>
-    </ul>
-    <h1>1.6.0</h1>
-    <ul>
-      <li> Compatible with Android Studio 4.1 </li>
-    </ul>
-    <h1>1.5.4</h1>
-    <ul>
-      <li> We will not process strings in import statements </li>
-    </ul>
-    <h1>1.5.3</h1>
-    <ul>
-      <li> bugfix: assets in lib/ of other packages and declared in pubspec.yaml of current package </li>
-    </ul>
-    <h1>1.5.2</h1>
-    <ul>
-      <li> Support to complete the fonts in the sub-packages listed in the '.package' file </li>
-    </ul>
-    <h1>1.5.1</h1>
-    <ul>
-      <li> change issue tracker </li>
-    </ul>
-    <h1>1.5.0</h1>
-    <ul>
-      <li> Support to complete the assets in the sub-packages listed in the '.package' file  </li>
-    </ul>
-    <h1>1.4.4</h1>
-    <ul>
-      <li> bugfix </li>
-    </ul>
-    <h1>1.4.3</h1>
-    <ul>
-      <li> Improve performance </li>
-    </ul>
-    <h1>1.4.2</h1>
-    <ul>
-      <li> Autocompleted assets will only replace the string before the cursor </li>
-    </ul>
-    <h1>1.4.1</h1>
-    <ul>
-      <li> Add Android and iOS pre-installed fonts as default candidates </li>
-    </ul>
-    <h1>1.4.0</h1>
-    <ul>
-      <li> supports fonts </li>
-    </ul>
-    <h1>1.3.0</h1>
-    <ul>
-      <li> supports svg file preview </li>
-    </ul>   
-     <h1>1.2.3</h1>
-    <ul>
-      <li> support Android Studio from 191 to 193 </li>
-    </ul>
-    <h1>1.2.2</h1>
-    <ul>
-      <li> support Android Studio 192 </li>
-    </ul>
-    <h1>1.2.1</h1>
-    <ul>
-      <li> fix bug: lookup string is lowercase </li>
-    </ul>
-    <h1>1.2.0</h1>
-    <ul>
-      <li> supports asset preview </li>
-    </ul>  
-    <h1>1.1.4</h1>
-    <ul>
-      <li> supports assets in lib/. (note: you must config their name in pubspec asset section, e.g. "assets: - test.png" )  </li>
-      <li> supports assets in dependencies. (note: you must config their name in pubspec asset section, e.g. "assets: - packages/fancy_images/image_1.png", here a package named fancy_image have image_1.png )  </li>
-    </ul>  
-    <h1>1.1.3</h1>
-    <ul>
-      <li> filter null asset path. (e.g. "assets: - ")  </li>
-      <li> add logo  </li>
-    </ul> 
-    <h1>1.1.2</h1>
-    <ul>
-      <li> fix bug: no completion when pubspec contains multilevel directory path. (e.g. "- assets/images/")  </li>
-      <li> fix bug: completion path is full path instead of relative path if pubspec contains full file path.  </li>
-    </ul>   
-    <h1>1.1.1</h1>
-    <ul>
-      <li> add log  </li>
-    </ul>
-    <h1>1.0</h1>
-    <ul>
-      <li> Suggest asset paths when you type a Dart string  </li>
-    </ul>
-"""
+intellijPlatform {
+    pluginConfiguration {
+        version = project.version
+        changeNotes = """
+        <h1>2.0.0</h1>
+        <ul>
+          <li> Rebuilt for Android Studio 2025.3 (AI-253) </li>
+          <li> Upgrade to IntelliJ Platform Gradle Plugin 2.x </li>
+          <li> Compatible with Dart plugin 505.0.0 </li>
+        </ul>
+        """
+    }
 }

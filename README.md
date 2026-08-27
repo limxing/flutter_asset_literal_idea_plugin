@@ -1,3 +1,6 @@
+
+Fix to support the latest AndroidStudio.
+
 Automatically help you complete the path of assets when you type a Dart string
 ------------------------------------------------------------------------------
 

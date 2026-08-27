@@ -1,6 +1,7 @@
 <idea-plugin>
     <id>com.ixigua.flutter_asset_iteral</id>
     <name>FlutterAssetAutoCompletion</name>
+    <idea-version since-build="253.0" until-build="253.*" />
     <vendor url="https://www.ixigua.com/">ixigua.com</vendor>
 
 
